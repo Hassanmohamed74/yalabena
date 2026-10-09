@@ -19,14 +19,6 @@ export default defineConfig({
         secure: false,
         ws: true,
       },
-      // Socket.IO uses the /socket.io transport path even when the namespace is /chat.
-      // Without this proxy, the dev server returns the SPA HTML instead of upgrading WS.
-      '/socket.io': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-        secure: false,
-        ws: true,
-      },
     },
   },
 })

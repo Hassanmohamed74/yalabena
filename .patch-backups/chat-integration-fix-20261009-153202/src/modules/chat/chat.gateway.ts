@@ -154,17 +154,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
   ) {
     const userId = client.data.user?.userId;
-    if (!userId || !data?.room_id || typeof data.is_typing !== 'boolean') return;
-
-    // Do not allow an authenticated client to broadcast typing events into an
-    // arbitrary room by supplying its ID. The REST/service access check is the
-    // same source of truth used for room history and membership.
-    try {
-      await this.chatService.getRoom(data.room_id, userId);
-    } catch {
-      return;
-    }
-
+    if (!userId) return;
     client.to(data.room_id).emit('typing', { user_id: userId, is_typing: data.is_typing });
   }
 
