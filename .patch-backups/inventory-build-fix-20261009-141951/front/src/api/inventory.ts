@@ -56,10 +56,8 @@ export interface ItemInput {
   branch_id?: string; initial_quantity?: number;
 }
 
-const clean = <T extends object>(o: T): Partial<T> =>
-  Object.fromEntries(
-    Object.entries(o).filter(([, value]) => value !== undefined && value !== "" && value !== null),
-  ) as Partial<T>;
+const clean = <T extends Record<string, unknown>>(o: T) =>
+  Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== "" && v !== null)) as Partial<T>;
 
 export const inventoryApi = {
   items: async (params?: {

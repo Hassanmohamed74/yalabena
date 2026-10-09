@@ -2,7 +2,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, Boxes, History, Plus, RefreshCw, Search } from "lucide-react";
-import { inventoryApi, type InventoryCategory, type InventoryItem, type ItemInput } from "@/api/inventory";
+import { inventoryApi, type InventoryCategory, type InventoryItem } from "@/api/inventory";
 import { branchesApi } from "@/api/branches";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,8 +22,8 @@ const emptyForm: FormState = {
 };
 
 function quantityOf(item: InventoryItem): number {
-  // The catalog endpoint returns a branch-filtered or cross-branch aggregate in `quantity`.
-  return Number(item.quantity ?? 0);
+  if (Array.isArray(item.stock)) return item.stock.reduce((sum, stock) => sum + Number(stock.quantity || 0), 0);
+  return Number(item.stock?.quantity ?? 0);
 }
 
 export default function InventoryPage() {
@@ -43,17 +43,12 @@ export default function InventoryPage() {
 
   const branchesQuery = useQuery({ queryKey: ["branches"], queryFn: branchesApi.findAll });
   const itemsQuery = useQuery({
-    queryKey: ["inventory", branchId, lowOnly, search.trim()],
-    queryFn: () => inventoryApi.items({
-      branch_id: branchId || undefined,
-      low_stock_only: lowOnly,
-      search: search.trim() || undefined,
-      limit: 200,
-    }),
+    queryKey: ["inventory", branchId, lowOnly],
+    queryFn: () => inventoryApi.list({ branch_id: branchId || undefined, low_stock_only: lowOnly }),
   });
   const movesQuery = useQuery({
     queryKey: ["inventory-moves", branchId],
-    queryFn: () => inventoryApi.moves({ branch_id: branchId || undefined, limit: 12 }),
+    queryFn: () => inventoryApi.moves({ branch_id: branchId || undefined }),
   });
   const valuationQuery = useQuery({
     queryKey: ["inventory-valuation", branchId],
@@ -66,8 +61,7 @@ export default function InventoryPage() {
     queryClient.invalidateQueries({ queryKey: ["inventory-valuation"] });
   };
   const saveMutation = useMutation({
-    mutationFn: (payload: { id?: string; dto: ItemInput }) =>
-      payload.id ? inventoryApi.updateItem(payload.id, payload.dto) : inventoryApi.createItem(payload.dto),
+    mutationFn: (payload: { id?: string; dto: any }) => payload.id ? inventoryApi.update(payload.id, payload.dto) : inventoryApi.create(payload.dto),
     onSuccess: () => { refresh(); setShowForm(false); setEditing(null); setForm(emptyForm); toast({ title: t("inventory.saved") }); },
     onError: (error: any) => toast({ variant: "destructive", title: t("inventory.error"), description: error?.response?.data?.message || error.message }),
   });
@@ -76,19 +70,16 @@ export default function InventoryPage() {
       if (!moveItem || !branchId) throw new Error(t("inventory.chooseBranch"));
       const quantity = Number(moveQuantity);
       if (!Number.isInteger(quantity) || quantity === 0 || (moveType !== "adjustment" && quantity < 1)) throw new Error(t("inventory.invalidQuantity"));
-      if (!moveReason.trim()) throw new Error(t("inventory.reasonRequired", "Please enter a reason for this movement."));
-      if (moveType === "in") {
-        return inventoryApi.receive(moveItem.id, { branch_id: branchId, quantity, reason: moveReason.trim() });
-      }
-      // The backend adjustment endpoint accepts a signed quantity, not a movement type.
-      const signedQuantity = moveType === "out" ? -Math.abs(quantity) : quantity;
-      return inventoryApi.adjust(moveItem.id, { branch_id: branchId, quantity: signedQuantity, reason: moveReason.trim() });
+      return inventoryApi.adjust(moveItem.id, { branch_id: branchId, type: moveType, quantity, reason: moveReason.trim() });
     },
     onSuccess: () => { refresh(); setMoveItem(null); setMoveQuantity("1"); setMoveReason(""); toast({ title: t("inventory.movementSaved") }); },
     onError: (error: any) => toast({ variant: "destructive", title: t("inventory.error"), description: error?.response?.data?.message || error.message }),
   });
 
-  const items = useMemo(() => itemsQuery.data?.data ?? [], [itemsQuery.data]);
+  const items = useMemo(() => (itemsQuery.data ?? []).filter((item) => {
+    const query = search.trim().toLowerCase();
+    return !query || item.name.toLowerCase().includes(query) || (item.sku ?? "").toLowerCase().includes(query);
+  }), [itemsQuery.data, search]);
 
   const openCreate = () => { setEditing(null); setForm({ ...emptyForm, branch_id: branchId }); setShowForm(true); };
   const openEdit = (item: InventoryItem) => {
@@ -113,7 +104,7 @@ export default function InventoryPage() {
   };
 
   const money = (value: number) => new Intl.NumberFormat(undefined, { style: "currency", currency: "EGP", maximumFractionDigits: 2 }).format(Number(value || 0));
-  const stockMoves = movesQuery.data?.data ?? [];
+  const stockMoves = (movesQuery.data ?? []).slice(0, 12);
 
   return <div className="space-y-6 p-4 md:p-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -122,9 +113,9 @@ export default function InventoryPage() {
     </div>
 
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm">{t("inventory.catalogItems")}</CardTitle><Boxes className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{itemsQuery.data?.total ?? "—"}</div></CardContent></Card>
-      <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm">{t("inventory.lowStock")}</CardTitle><AlertTriangle className="h-4 w-4 text-amber-500" /></CardHeader><CardContent><div className="text-2xl font-bold">{items.filter((i) => i.is_low_stock).length}</div></CardContent></Card>
-      <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm">{t("inventory.stockUnits")}</CardTitle><Boxes className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{items.reduce((sum, i) => sum + quantityOf(i), 0)}</div></CardContent></Card>
+      <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm">{t("inventory.catalogItems")}</CardTitle><Boxes className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{itemsQuery.data?.length ?? "—"}</div></CardContent></Card>
+      <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm">{t("inventory.lowStock")}</CardTitle><AlertTriangle className="h-4 w-4 text-amber-500" /></CardHeader><CardContent><div className="text-2xl font-bold">{(itemsQuery.data ?? []).filter((i) => quantityOf(i) <= i.reorder_level).length}</div></CardContent></Card>
+      <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm">{t("inventory.stockUnits")}</CardTitle><Boxes className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{(itemsQuery.data ?? []).reduce((sum, i) => sum + quantityOf(i), 0)}</div></CardContent></Card>
       <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm">{t("inventory.valuation")}</CardTitle><RefreshCw className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{money(valuationQuery.data?.grand_total_cost ?? 0)}</div></CardContent></Card>
     </div>
 
