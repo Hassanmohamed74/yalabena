@@ -33,6 +33,7 @@ import LmsPage from '@/pages/Lms';
 import NotFoundPage from '@/pages/NotFound';
 import ChatPage from '@/pages/Chat';
 import LandingPage from '@/pages/public/LandingPage';
+import InventoryPage from '@/pages/inventory/InventoryPage';
 import HrLayout from '@/pages/hr/HrLayout';
 import EmployeesPage from '@/pages/hr/EmployeesPage';
 import EmployeeDetailsPage from '@/pages/hr/EmployeeDetailsPage';
@@ -231,6 +232,10 @@ function App() {
               <Route path="payroll" element={roleGate(['super_admin', 'hr', 'finance'], <PayrollPage />)} />
             </Route>
 
+            <Route
+              path="/inventory"
+              element={roleGate(['super_admin', 'branch_manager', 'sales', 'finance', 'auditor'], <InventoryPage />)}
+            />
             <Route path="/notifications" element={<NotificationsPage />} />
 
             <Route

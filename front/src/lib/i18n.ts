@@ -5,10 +5,12 @@ import en from "@/locales/en/common.json";
 import ar from "@/locales/ar/common.json";
 import enHr from "@/locales/en/hr.json";
 import arHr from "@/locales/ar/hr.json";
+import enInv from "@/locales/en/inventory.json";
+import arInv from "@/locales/ar/inventory.json";
 
 const resources = {
-  en: { common: en, hr: enHr },
-  ar: { common: ar, hr: arHr },
+  en: { common: en, hr: enHr, inventory: enInv },
+  ar: { common: ar, hr: arHr, inventory: arInv },
 };
 
 function applyDirection(language: string) {
@@ -24,7 +26,7 @@ i18n
     resources,
     fallbackLng: "en",
     lng: localStorage.getItem("i18nextLng") || "en",
-    ns: ["common", "hr"],
+    ns: ["common", "hr", "inventory"],
     defaultNS: "common",
     interpolation: { escapeValue: false },
     detection: { order: ["localStorage", "navigator"], caches: ["localStorage"] },

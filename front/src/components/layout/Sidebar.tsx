@@ -65,7 +65,7 @@ const navItems: NavItem[] = [
   { to: "/knowledge-base", label: "nav.knowledgeBase", icon: BookOpenText, roles: ["super_admin", "hr", "branch_manager", "teacher", "sales", "finance", "academic", "student"] },
   { to: "/chat", label: "nav.chat", icon: MessagesSquare, roles: ["super_admin", "branch_manager", "academic", "teacher", "student", "moderator"] },
   { to: "/reports", label: "nav.reports", icon: BarChart3, roles: ["super_admin", "branch_manager", "sales", "academic", "finance", "hr", "teacher", "auditor"] },
-  { to: "/inventory", label: "nav.inventory", icon: Package, roles: ["super_admin", "branch_manager", "sales", "finance"] },
+  { to: "/inventory", label: "nav.inventory", icon: Package, roles: ["super_admin", "branch_manager", "sales", "finance", "auditor"] },
   { to: "/notifications", label: "nav.notifications", icon: Bell, roles: [] }, // متاح للجميع (مستلم الإشعارات)
   { to: "/branches", label: "nav.branches", icon: Building2, roles: ["super_admin", "branch_manager"] },
   { to: "/users", label: "nav.users", icon: UserCog, roles: ["super_admin", "branch_manager", "hr"] },
