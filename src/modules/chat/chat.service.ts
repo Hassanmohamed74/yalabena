@@ -21,6 +21,7 @@ import { EnrollmentStatus } from '../../common/enums/enrollment-status.enum';
 import { ViolationAction } from '../../common/enums/violation-action.enum';
 import { StrikeAction } from '../../common/enums/strike-action.enum';
 import { normalizeChatMessage } from './utils/normalize-chat';
+import { toPublicUser, sanitizeMessage, sanitizeRoomMembers } from './utils/public-user';
 import { toCsvLine } from './utils/csv';
 import { isInternalUploadUrl } from './utils/attachment-url';
 import { PdfService } from '../pdf/pdf.service';
@@ -91,7 +92,9 @@ export class ChatService {
       if (members.length) await this.memberRepo.save(members);
     }
 
-    return this.roomRepo.findOne({ where: { id: saved.id }, relations: ['members', 'members.user'] });
+    return sanitizeRoomMembers(
+      await this.roomRepo.findOne({ where: { id: saved.id }, relations: ['members', 'members.user'] }),
+    );
   }
 
   /**
@@ -229,7 +232,7 @@ export class ChatService {
       throw new ForbiddenException('Access denied');
     }
 
-    return membership.room;
+    return sanitizeRoomMembers(membership.room);
   }
   // ─── MESSAGES ───
 
@@ -283,10 +286,12 @@ export class ChatService {
    * chatService['messageRepo'] bracket-notation access).
    */
   async getMessageWithSender(messageId: string) {
-    return this.messageRepo.findOne({
+    const message = await this.messageRepo.findOne({
       where: { id: messageId },
       relations: ['sender'],
     });
+    // Never ship password_hash / 2FA secrets to the room (see public-user.ts).
+    return sanitizeMessage(message);
   }
 
   async getMessages(roomId: string, userId: string, offset = 0, limit = 50) {
@@ -317,7 +322,8 @@ export class ChatService {
     membership.last_read_at = new Date();
     await this.memberRepo.save(membership);
 
-    return { data: messages.reverse(), total };
+    // `sender` / `reply_to.sender` carry the full users row — strip it.
+    return { data: messages.reverse().map((m) => sanitizeMessage(m)!), total };
   }
 
   /**
@@ -524,10 +530,13 @@ export class ChatService {
     if (query.rule_matched) qb.andWhere('v.rule_matched = :rule', { rule: query.rule_matched });
     if (query.is_false_positive !== undefined) qb.andWhere('v.is_false_positive = :fp', { fp: query.is_false_positive });
 
-    const [data, total] = await qb
+    const [rows, total] = await qb
       .skip(query.offset || 0)
       .take(query.limit || 20)
       .getManyAndCount();
+
+    // Moderators see identity, not credentials: v.sender is a full users row.
+    const data = rows.map((v) => ({ ...v, sender: toPublicUser(v.sender) }));
     return { data, total };
   }
 
@@ -610,8 +619,8 @@ export class ChatService {
   scanMessage(body: string): { violation: boolean; rule: string; action: ViolationAction } | null {
     if (!body) return null;
 
-    const { canonical, squashed } = normalizeChatMessage(body);
-    const targets = [canonical, squashed];
+    const { canonical, squashed, compact } = normalizeChatMessage(body);
+    const targets = [canonical, squashed, compact];
 
     const rules: Array<{ name: string; pattern: RegExp; action: ViolationAction }> = [
       { name: 'phone_egyptian', pattern: /01[0125]\d{8}/, action: ViolationAction.BLOCKED },

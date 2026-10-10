@@ -1,0 +1,13 @@
+﻿docker :  Container speakup-postgres  Running
+At line:1 char:44
++ ... \WinDows\Desktop\yalabena-main; docker compose up -d app 2>&1 | Out-F ...
++                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ( Container speakup-postgres  Runn 
+   ing:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ Container speakup-redis  Running
+ Container speakup-postgres  Waiting
+ Container speakup-postgres  Healthy
+ Container speakup-api  Starting
+ Container speakup-api  Started

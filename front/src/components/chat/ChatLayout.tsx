@@ -30,6 +30,12 @@ function ChatLayoutInner({ apiBase, currentUserId, isModerator, authHeader }: Ch
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [activeRoom, setActiveRoom] = useState<ChatRoom | null>(null);
   const [members, setMembers] = useState<ChatRoomMember[]>([]);
+  // The typing handler lives inside the socket effect; keep a ref so it can
+  // resolve display names from the latest member list without re-subscribing.
+  const membersRef = useRef(members);
+  useEffect(() => {
+    membersRef.current = members;
+  }, [members]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [typing, setTyping] = useState<Record<string, TypingUser>>({});
   const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
@@ -116,7 +122,11 @@ function ChatLayoutInner({ apiBase, currentUserId, isModerator, authHeader }: Ch
       setTyping((prev) => {
         const next = { ...prev };
         if (e.is_typing) {
-          next[e.user_id] = { id: e.user_id, name: 'Someone' };
+          const member = membersRef.current.find((mm) => mm.user_id === e.user_id);
+          const name = member?.user
+            ? `${member.user.first_name} ${member.user.last_name}`.trim()
+            : 'Someone';
+          next[e.user_id] = { id: e.user_id, name };
         } else delete next[e.user_id];
         return next;
       });
