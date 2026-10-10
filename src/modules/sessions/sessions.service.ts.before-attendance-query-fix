@@ -1,4 +1,4 @@
-﻿import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Session } from '../../shared/entities/session.entity';
@@ -10,13 +10,13 @@ export class SessionsService {
     private readonly repo: Repository<Session>,
   ) {}
 
-  // Ø¯Ø§Ù„Ø© Ù…Ø³Ø§Ø¹Ø¯Ø© Ù„Ø§Ø³ØªØ®Ø±Ø§Ø¬ Ø§Ù„ÙˆÙ‚Øª ÙÙ‚Ø· (HH:mm:ss) Ù…Ù† Ø£ÙŠ DateTime ISO string
+  // دالة مساعدة لاستخراج الوقت فقط (HH:mm:ss) من أي DateTime ISO string
   private extractTime(dateTimeStr?: string): string | undefined {
     if (!dateTimeStr) return undefined;
     return dateTimeStr.includes('T') ? dateTimeStr.split('T')[1].substring(0, 8) : dateTimeStr;
   }
 
-  // Ø¯Ø§Ù„Ø© Ù…Ø³Ø§Ø¹Ø¯Ø© Ù„Ø§Ø³ØªØ®Ø±Ø§Ø¬ Ø§Ù„ØªØ§Ø±ÙŠØ® ÙÙ‚Ø· (YYYY-MM-DD)
+  // دالة مساعدة لاستخراج التاريخ فقط (YYYY-MM-DD)
   private extractDate(dateTimeStr?: string): string | undefined {
     if (!dateTimeStr) return undefined;
     return dateTimeStr.includes('T') ? dateTimeStr.split('T')[0] : dateTimeStr;
@@ -92,16 +92,13 @@ export class SessionsService {
   async getAttendance(id: string) {
     const session = await this.repo.findOne({
       where: { id },
-      select: ['id'],
+      relations: ['attendances'],
     });
+
     if (!session) {
       throw new NotFoundException(`Session with ID ${id} not found`);
     }
-    const attendanceRepo = this.repo.manager.getRepository('Attendance');
-    return attendanceRepo
-      .createQueryBuilder('attendance')
-      .where('attendance.session_id = :id', { id })
-      .getMany();
+
+    return (session as any)?.attendances ?? [];
   }
 }
-

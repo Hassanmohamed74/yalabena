@@ -34,6 +34,10 @@ import NotFoundPage from '@/pages/NotFound';
 import ChatPage from '@/pages/Chat';
 import LandingPage from '@/pages/public/LandingPage';
 import InventoryPage from '@/pages/inventory/InventoryPage';
+import KnowledgeBasePage from '@/pages/KnowledgeBase';
+import ReportsPage from '@/pages/Reports';
+import PublicCoursesPage from '@/pages/public/CoursesPage';
+import ActivityAttendancePage from '@/pages/activities/ActivityAttendancePage';
 import HrLayout from '@/pages/hr/HrLayout';
 import EmployeesPage from '@/pages/hr/EmployeesPage';
 import EmployeeDetailsPage from '@/pages/hr/EmployeeDetailsPage';
@@ -74,6 +78,7 @@ function App() {
           }
         />
         <Route path="/welcome" element={<LandingPage />} />
+        <Route path="/catalog" element={<PublicCoursesPage />} />
 
         <Route
           path="/register"
@@ -182,6 +187,13 @@ function App() {
               )}
             />
             <Route
+              path="/activities/:id/attendance"
+              element={roleGate(
+                ['super_admin', 'branch_manager', 'academic', 'teacher'],
+                <ActivityAttendancePage />,
+              )}
+            />
+            <Route
               path="/activities/:id"
               element={roleGate(
                 ['super_admin', 'branch_manager', 'academic', 'teacher', 'sales'],
@@ -239,6 +251,21 @@ function App() {
             <Route path="/notifications" element={<NotificationsPage />} />
 
             <Route
+              path="/knowledge-base"
+              element={roleGate(
+                ['super_admin', 'hr', 'branch_manager', 'teacher', 'sales', 'finance'],
+                <KnowledgeBasePage />,
+              )}
+            />
+            <Route
+              path="/reports"
+              element={roleGate(
+                ['super_admin', 'branch_manager', 'sales', 'academic', 'finance', 'hr', 'teacher'],
+                <ReportsPage />,
+              )}
+            />
+
+            <Route
               path="/enrollments"
               element={roleGate(
                 ['super_admin', 'branch_manager', 'sales', 'finance', 'academic'],
@@ -288,10 +315,10 @@ function App() {
 
             <Route
               path="/audit"
-              element={roleGate(['super_admin'], <AuditLogsPage />)}
+              element={roleGate(['super_admin', 'auditor'], <AuditLogsPage />)}
             />
 
-            <Route path="/security" element={<SecuritySettingsPage />} />
+            <Route path="/security" element={roleGate(['super_admin'], <SecuritySettingsPage />)} />
           </Route>
         </Route>
 

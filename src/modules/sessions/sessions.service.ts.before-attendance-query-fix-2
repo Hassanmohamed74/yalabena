@@ -92,16 +92,13 @@ export class SessionsService {
   async getAttendance(id: string) {
     const session = await this.repo.findOne({
       where: { id },
-      select: ['id'],
+      relations: ['attendances'],
     });
+
     if (!session) {
       throw new NotFoundException(`Session with ID ${id} not found`);
     }
-    const attendanceRepo = this.repo.manager.getRepository('Attendance');
-    return attendanceRepo
-      .createQueryBuilder('attendance')
-      .where('attendance.session_id = :id', { id })
-      .getMany();
+
+    return (session as any)?.attendances ?? [];
   }
 }
-

@@ -1,4 +1,4 @@
-﻿import { useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -75,21 +75,6 @@ export default function DashboardPage() {
     queryFn: () => sessionsApi.findAll(),
   });
   const sessions = normalizeArray<any>(rawSessions);
-  // Load saved attendance records for dashboard totals
-  const sessionIds = sessions
-    .map((s: any) => s?.id)
-    .filter(Boolean)
-    .sort();
-  const { data: attendanceRecords = [] } = useQuery({
-    queryKey: ["dashboard-attendance", sessionIds],
-    queryFn: async () => {
-      const results = await Promise.all(
-        sessionIds.map((id: string) => sessionsApi.getAttendance(id))
-      );
-      return results.flat();
-    },
-    enabled: !sessionsLoading && sessionIds.length > 0,
-  });
 
   const isLoading = leadsLoading || studentsLoading || coursesLoading || branchesLoading || groupsLoading || sessionsLoading;
 
@@ -121,10 +106,10 @@ export default function DashboardPage() {
     .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
     .slice(0, 5);
 
-  // Attendance summary from saved records
-  const presentCount = attendanceRecords.filter((a: any) => a?.status === "present").length;
-  const absentCount = attendanceRecords.filter((a: any) => a?.status === "absent").length;
-  const lateCount = attendanceRecords.filter((a: any) => a?.status === "late").length;
+  // Attendance summary from sessions
+  const presentCount = sessions.reduce((sum, s) => sum + (Array.isArray(s?.attendance) ? s.attendance.filter((a: any) => a?.status === "present").length : 0), 0);
+  const absentCount = sessions.reduce((sum, s) => sum + (Array.isArray(s?.attendance) ? s.attendance.filter((a: any) => a?.status === "absent").length : 0), 0);
+  const lateCount = sessions.reduce((sum, s) => sum + (Array.isArray(s?.attendance) ? s.attendance.filter((a: any) => a?.status === "late").length : 0), 0);
 
   const statCards = [
     { title: t("nav.leads"), value: totalLeads, icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
@@ -252,7 +237,7 @@ export default function DashboardPage() {
                         <div>
                           <p className="text-sm font-medium">{session?.title}</p>
                           <p className="text-xs text-muted-foreground">
-                            {session?.start_time ? new Date(session.start_time).toLocaleString() : "â€”"}
+                            {session?.start_time ? new Date(session.start_time).toLocaleString() : "—"}
                           </p>
                         </div>
                         <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">
